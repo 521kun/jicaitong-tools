@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,">
+  <title>集材通图片水印与编号工具</title>
+  <style>
+    :root{--blue:#1768ab;--ink:#172533;--muted:#687987;--line:#d8e1e7;--paper:#fff;--bg:#f3f6f8;--warn:#b25b10;--bad:#b22d35;--ok:#19744f}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .top{height:66px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1440px)/2 + 24px));position:sticky;top:0;z-index:5}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .mark{width:30px;height:30px;border-radius:8px;background:#ffc72c;display:grid;place-items:center}
+    .hint{color:var(--ok);font-size:12px}
+    .shell{max-width:1440px;margin:auto;padding:24px;display:grid;grid-template-columns:390px minmax(0,1fr);gap:24px;align-items:start}
+    .panel,.preview{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 18px rgba(34,57,75,.05)}
+    .panel{padding:18px;margin-bottom:14px}
+    .panel h2,.panel h3{margin:0 0 12px;font-size:16px}
+    .step{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;margin-bottom:4px}
+    .drop{width:100%;min-height:126px;border:1.5px dashed #9cb9ce;border-radius:10px;background:#f8fbfd;color:#355269;display:grid;place-items:center;text-align:center;padding:18px}
+    .drop.over{border-color:var(--blue);background:#edf7ff}
+    .drop strong{display:block;margin:6px}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field{display:grid;gap:5px;color:#526572;font-size:12px;font-weight:700}
+    .field.wide{grid-column:1/-1}
+    .field input,.field select,.field textarea{width:100%;border:1px solid #cbd8e1;border-radius:8px;padding:8px;color:var(--ink);background:#fff;font-weight:400}
+    .field textarea{min-height:62px;resize:vertical}
+    .range-line{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+    .range-line input{accent-color:var(--blue)}
+    .checks{margin:0;padding:0;list-style:none;display:grid;gap:7px;font-size:13px}
+    .checks li{padding:8px 10px;border-radius:7px;background:#f4f7f9}
+    .checks .bad{background:#fff0f1;color:var(--bad)}
+    .checks .ok{background:#edf9f3;color:var(--ok)}
+    .preview{padding:16px;position:sticky;top:90px}
+    .preview-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+    .preview-head strong{font-size:16px}
+    .meta{color:var(--muted);font-size:12px}
+    .canvas-wrap{min-height:470px;background:#2b3238;border-radius:10px;display:grid;place-items:center;padding:14px}
+    canvas{display:block;max-width:100%;max-height:calc(100vh - 210px);height:auto;background:#15212a;cursor:zoom-in}
+    .empty{color:#dce5eb;text-align:center}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+    .primary,.secondary{border:0;border-radius:8px;padding:10px 14px;font-weight:800}
+    .primary{background:var(--blue);color:#fff}
+    .primary:disabled,.secondary:disabled{background:#aab9c3;color:#f4f7f9;cursor:not-allowed}
+    .secondary{background:#eaf1f5;color:#25465e}
+    .status{margin-top:12px;min-height:22px;border-radius:7px;padding:8px 10px;display:none}
+    .status.show{display:block}
+    .status.ok{background:#edf9f3;color:var(--ok)}
+    .status.error{background:#fff0f1;color:var(--bad)}
+    .status.info{background:#edf6fc;color:#1e5d8d}
+    .batch{max-width:1440px;margin:0 auto 38px;padding:0 24px}
+    .batch-top{display:flex;justify-content:space-between;align-items:end;gap:16px;border-top:1px solid var(--line);padding:22px 0 14px}
+    .batch-top h2{margin:2px 0;font-size:22px}
+    .sub{margin:0;color:var(--muted)}
+    .rows{padding:10px 0;display:grid;gap:9px}
+    .row{display:grid;grid-template-columns:40px 86px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px;border:1px solid #dde6eb;border-radius:9px;background:#fff}
+    .row.active{border-color:var(--blue);box-shadow:0 0 0 2px rgba(23,104,171,.12)}
+    .row-seq{font-weight:800;color:var(--blue);text-align:center;font-size:15px}
+    .thumb{height:66px;width:86px;object-fit:cover;border-radius:6px;background:#e7edf1;cursor:pointer}
+    .row-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#5d7180}
+    .row-fields{display:grid;grid-template-columns:minmax(150px,1fr) 112px 122px minmax(140px,1fr);gap:7px;margin-top:7px}
+    .row-fields label{font-size:11px;color:#617482}
+    .row-fields input{display:block;width:100%;padding:5px;border:1px solid #cbd8e1;border-radius:6px;background:#fff;margin-top:3px}
+    .row-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:end}
+    .row-actions button{border:1px solid #cbd8e1;background:#fff;color:#284a61;border-radius:6px;padding:6px 8px;font-size:12px;font-weight:700}
+    .row-actions button:first-child{background:var(--blue);border-color:var(--blue);color:#fff}
+    .row-actions button:disabled{opacity:.4;cursor:not-allowed}
+    .no-files{padding:38px;text-align:center;color:#73828d;border:1px dashed #b7c9d5;border-radius:12px;background:#fbfdfe}
+    .hidden{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+    .zoom-modal{position:fixed;inset:0;background:rgba(10,16,22,.88);display:none;place-items:center;z-index:50;cursor:zoom-out;padding:24px}
+    .zoom-modal.show{display:grid}
+    .zoom-modal img{max-width:96vw;max-height:94vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.preview{position:static;grid-row:1}.batch-top{align-items:start;flex-direction:column}.row{grid-template-columns:34px 72px 1fr}.thumb{width:72px}.row-actions{grid-column:1/-1;justify-content:start}.row-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.top{padding:0 14px}.shell,.batch{padding-left:14px;padding-right:14px}.field-grid{grid-template-columns:1fr}.field.wide{grid-column:auto}.canvas-wrap{min-height:320px}.row-fields{grid-template-columns:1fr}.hint{display:none}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand"><span class="mark">印</span><span>集材通图片水印与编号工具</span></div><span class="hint">● 图片仅在本机处理</span></header>
+  <main class="shell">
+    <aside>
+      <section class="panel">
+        <div class="step">01 / 选择图片</div>
+        <h2>一次上传，顺序可调</h2>
+        <input id="files" class="hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple>
+        <button id="drop" class="drop" type="button"><span>＋</span><strong>点击或拖入图片</strong><small>上传几张就是几张，序号按顺序自动编</small></button>
+      </section>
+      <section class="panel">
+        <div class="step">02 / 水印</div>
+        <h3>默认应用到新上传图片</h3>
+        <div class="field-grid">
+          <label class="field wide"><span><input id="watermarkEnabled" type="checkbox" checked> 在图片上叠加水印（关闭后图片保持原样）</span></label>
+          <label class="field">打卡时间<input id="time" type="time"></label>
+          <label class="field">日期<input id="date" type="date"></label>
+          <label class="field wide">水印样式<select id="watermarkStyle"><option value="card">打卡黄白标签</option><option value="audit">现场验证（经纬度 / 地址 / 时间）</option><option value="simple">简洁水印相机（多行信息）</option></select></label>
+          <label class="field">经度<input id="lng" type="text" inputmode="decimal" placeholder="例如 115.780486"></label>
+          <label class="field">纬度<input id="lat" type="text" inputmode="decimal" placeholder="例如 35.423247"></label>
+          <label class="field wide">地点（可直接回车换行）<textarea id="location" placeholder="请输入地点；需要换行时直接按回车"></textarea></label>
+          <label class="field wide"><span class="range-line">水印大小 <output id="sizeOut">100%</output></span><input id="size" type="range" min="55" max="160" value="100"></label>
+          <label class="field wide"><span class="range-line">文字行距 <output id="lineHeightOut">120%</output></span><input id="lineHeight" type="range" min="90" max="180" value="120"></label>
+          <label class="field wide"><span class="range-line">底部遮罩 <output id="shadeOut">72%</output></span><input id="shade" type="range" min="0" max="100" value="72"></label>
+          <label class="field wide"><span><input id="brandMark" type="checkbox" checked> 右下角显示“水印相机”标志</span></label>
+        </div>
+        <div class="actions"><button id="applyAll" class="secondary" type="button">将当前水印设置应用到全部</button></div>
+      </section>
+      <section class="panel">
+        <div class="step">03 / 编号标签 · 导出</div>
+        <div class="field-grid">
+          <label class="field wide"><span><input id="labelEnabled" type="checkbox" checked> 在左上角叠加序号标签（可关闭）</span></label>
+          <label class="field">标签颜色<select id="labelColor"><option value="white">白色</option><option value="black">黑色</option></select></label>
+          <label class="field">标签大小<select id="labelScale"><option value="0.035">小</option><option value="0.05" selected>中</option><option value="0.065">中大</option><option value="0.08">大</option></select></label>
+          <label class="field wide">标签前缀<input id="labelPrefix" type="text" placeholder="可留空，例如 1-；显示为 1-01、1-02…"></label>
+          <label class="field">输出格式<select id="format"><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label>
+          <label class="field">预览显示<select id="previewOverlay"><option value="both" selected>水印 + 标签</option><option value="watermark">仅水印</option><option value="label">仅标签</option><option value="none">原图（都不叠加）</option></select></label>
+        </div>
+        <div class="actions">
+          <button id="exportOne" class="secondary" type="button" disabled>导出当前</button>
+          <button id="exportOneWatermark" class="secondary" type="button" disabled>导出当前 · 仅水印</button>
+          <button id="exportOneLabel" class="secondary" type="button" disabled>导出当前 · 仅标签</button>
+          <button id="exportAll" class="primary" type="button" disabled>导出全部（ZIP）</button>
+          <button id="exportAllWatermark" class="secondary" type="button" disabled>导出全部 · 仅水印</button>
+          <button id="exportAllLabel" class="secondary" type="button" disabled>导出全部 · 仅标签</button>
+        </div>
+        <ul id="checks" class="checks" style="margin-top:14px"></ul>
+      </section>
+    </aside>
+    <section class="preview">
+      <div class="preview-head">
+        <div><strong>最终效果预览</strong><div id="previewMeta" class="meta">请先选择图片</div></div>
+        <span id="overlaySummary" class="meta">水印 + 标签</span>
+      </div>
+      <div id="canvasWrap" class="canvas-wrap">
+        <div class="empty">上传后可逐张预览与精修<br>点击预览图可放大检查细节</div>
+        <canvas id="canvas" hidden></canvas>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <section class="batch">
+    <div class="batch-top">
+      <div>
+        <div class="step">04 / 逐张核对与排序</div>
+        <h2>图片清单</h2>
+        <p class="sub">序号就是标签顺序；导出保留原图片文件名，点缩略图或“预览 / 精修”可查看该张效果。</p>
+      </div>
+      <div id="count" class="meta">尚未上传图片</div>
+    </div>
+    <div id="groups"><div class="no-files">先上传图片；顺序可以随时调整。</div></div>
+  </section>
+  <div id="zoomModal" class="zoom-modal"><img id="zoomImg" alt="放大预览"></div>
+  <script src="assets/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
