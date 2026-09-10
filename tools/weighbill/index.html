@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>集材通称重单工具</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="print-template.css">
+</head>
+<body>
+  <main class="shell">
+    <header><p>本地生成，不上传数据</p><h1>集材通称重单</h1><span>三个入口共用同一张 57 × 65 mm PDF 模板、同一编号规则和同一字段输出。</span></header>
+    <section class="card conditions"><h2>测试安排</h2><div class="fields">
+      <label>总金额（元）<input id="total" type="number" min="1" value="400000"></label><label>意向单价（元/吨）<input id="price" type="number" min="1" value="990"></label><label>优先调价范围（±元）<input id="priceRange" type="number" min="0" value="1"></label><label>总数量（立方米，可留空）<input id="testVolume" type="number" min="0" step="0.001" placeholder="不参与重量或金额计算"></label><label>开始日期<input id="startDate" type="date"></label><label>结束日期<input id="endDate" type="date"></label><label>每天最多车辆（1–4）<input id="dailyMax" type="number" min="1" max="4" value="3"></label>
+    </div><div class="actions"><button id="generate">生成测试安排</button><button id="printPdf" disabled>下载统一模板 PDF</button><button id="testDownloadSimple" disabled>下载简化开票表 Excel</button><button id="testDownloadLedger" disabled>下载业务台账 Excel</button></div><div class="status" id="status">测试数据只用于试算；生成后的 PDF 与其他入口完全同模板。</div></section>
+    <section class="card conditions"><h2>直接制作</h2><p class="import-note">每行填写“日期 净重（吨） [数量（立方米）]”，例如 <code>2026.8.2 30.35 28.6</code>。数量可省略，且不参与重量或金额计算；日期未带时间时会补齐非整点、带秒的时间。</p><div class="fields"><label>货物名称<input id="directGoods" type="text" value="原木"></label><label>单价（元/吨）<input id="directPrice" type="number" min="0" value="990"></label><label>车牌号码（可留空）<input id="directPlate" type="text"></label></div><label class="wide-label">日期、净重与可选数量清单<textarea id="directEntries" rows="6" placeholder="2026.8.2 30.35 28.6&#10;2026.8.5 36.29"></textarea></label><div class="actions"><button id="directGenerate">生成统一模板称重单</button><button id="directPrintPdf" disabled>下载统一模板 PDF</button><button id="directDownloadSimple" disabled>下载简化开票表 Excel</button><button id="directDownloadLedger" disabled>下载业务台账 Excel</button></div><div class="status" id="directStatus">生成后可同时下载 PDF、简化开票表和业务台账；按完整过磅时间排序编号。</div></section>
+    <section class="card conditions import-card"><h2>正式导入</h2><p class="import-note">导入 Excel 后生成称重单、简化开票表和业务台账。导入表不被覆盖；打印车号固定为 <code>000000</code>。</p><div class="fields">
+      <label>开票信息 Excel<input id="importFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label><label>业务月份（单月可留空）<input id="importMonth" type="month"></label><label>空车间隔最少（分钟）<input id="emptyGapMin" type="number" min="1" value="120"></label><label>空车间隔最多（分钟）<input id="emptyGapMax" type="number" min="1" value="360"></label>
+    </div><div class="rule-note">统一规则：全部入口均按完整过磅时间单调递增编号；每小时约推进 4 张；每张 PDF 都由同一份原始模板页生成。</div><div class="actions"><button id="importGenerate">导入、校验并生成</button><button id="importPrintPdf" disabled>下载统一模板 PDF</button><button id="importDownloadSimple" disabled>下载简化开票表 Excel</button><button id="importDownloadLedger" disabled>下载业务台账 Excel</button></div><div class="status" id="importStatus">本地读取，不上传文件。</div></section>
+    <section class="card"><h2>生成结果</h2><div class="kpis" id="kpis"></div><div id="resultTable" class="empty">尚未生成安排</div></section>
+    <section class="card report-card"><h2>统一称重单预览</h2><div id="formPreview" class="form-preview empty">生成后显示统一模板预览。</div></section>
+  </main><div id="printArea"></div><script src="assets/jszip.min.js"></script><script src="assets/template-data.js"></script><script src="app.js"></script>
+</body></html>
