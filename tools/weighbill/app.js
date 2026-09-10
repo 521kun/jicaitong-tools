@@ -8,10 +8,11 @@
   const PER_HOUR = 4;
   const NET_MIN_KG = 30000;
   const NET_MAX_KG = 40200;
-  const TARE_MIN_KG = 13010;
-  const TARE_MAX_KG = 16640;
-  const GROSS_MIN_KG = 46100;
-  const GROSS_MAX_KG = 55150;
+  // 已确认样本：空车 18.35–21.51 吨，重车 48.70–58.96 吨。
+  const TARE_MIN_KG = 18350;
+  const TARE_MAX_KG = 21510;
+  const GROSS_MIN_KG = 48700;
+  const GROSS_MAX_KG = 58960;
   const HEADERS = ['货物名称', '过磅时间', '车牌号码', '毛重(吨)', '皮重(吨)', '净重(吨)', '数量(立方米)', '单价(元)', '金额(元)'];
   let trips = [];
   let context = null;
@@ -148,20 +149,25 @@
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
   function generatedTare(rowNo, net) {
-    // 由已提供的真实磅单取值：重车 46.10–55.15 吨、空车 13.01–16.64 吨、净重 30.00–40.20 吨。
-    // 先确定净重，再在真实重车区间内反推空车值，避免“随机皮重 + 净重”造出不合理满车重量。
-    const lowGross = Math.max(GROSS_MIN_KG, net + TARE_MIN_KG);
-    const highGross = Math.min(GROSS_MAX_KG, net + TARE_MAX_KG);
-    if (lowGross > highGross) throw Error(`净重 ${net / 1000} 吨无法匹配样本中的满车、空车范围。`);
-    const desiredGross = 50500 + (((Number(rowNo) * 173) % 61) - 30) * 90;
-    const gross = Math.round(clamp(desiredGross, lowGross, highGross));
-    return gross - net;
+    // 先以空车样本范围生成变化；净重较高时再受满车上限约束，绝不虚构超范围的满车重量。
+    const lowTare = Math.max(TARE_MIN_KG, GROSS_MIN_KG - net);
+    const highTare = Math.min(TARE_MAX_KG, GROSS_MAX_KG - net);
+    if (lowTare > highTare) throw Error(`净重 ${net / 1000} 吨无法匹配样本中的满车、空车范围。`);
+    const span = highTare - lowTare;
+    const wave = ((Number(rowNo) * 173) % 101) / 100;
+    return Math.round((lowTare + span * wave) / 10) * 10;
   }
 
   function distributeNetWeights(totalKg, count) {
     if (totalKg < count * NET_MIN_KG || totalKg > count * NET_MAX_KG) throw Error('总净重无法在样本净重范围内分配。');
     const weights = Array.from({ length: count }, (_, index) => {
-      const offset = (((index * 137) % 29) - 14) * 70;
+      // 固定种子的分层波动：多数正常，少量偏低或偏高；每次相同输入得到相同结果，便于复核。
+      const r = ((index * 73 + 19) % 101) / 100;
+      const offset = r < .15
+        ? -4800 + r / .15 * 1800
+        : r > .85
+          ? 2200 + (r - .85) / .15 * 3200
+          : -1700 + (r - .15) / .70 * 3400;
       return clamp(Math.round((totalKg / count + offset) / 10) * 10, NET_MIN_KG, NET_MAX_KG);
     });
     let difference = totalKg - weights.reduce((sum, value) => sum + value, 0);
@@ -401,8 +407,8 @@
     const daily = Number($('dailyMax').value);
     if (!amount || !price || !Number.isInteger(priceRange) || priceRange < 0 || !start || !end || daily < 1 || daily > 4) throw Error('请填写有效的测试条件。');
     const totalKg = Math.round(amount * 1000 / price);
-    // 净重先决定最低车数：任何一车都不允许超过真实样本的净重上限。
-    const count = Math.max(1, Math.ceil(totalKg / NET_MAX_KG));
+    // 以约 35 吨为常态来定车数，留出高低车次，避免所有车辆被挤在上限附近。
+    const count = Math.max(1, Math.round(totalKg / 35000));
     const startDate = new Date(`${start}T08:00:00`);
     const endDate = new Date(`${end}T18:00:00`);
     const spanDays = Math.max(1, Math.floor((endDate - startDate) / 86400000) + 1);
